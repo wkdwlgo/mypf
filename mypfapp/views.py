@@ -1,19 +1,20 @@
 from django.shortcuts import render,get_object_or_404
 from django.http import HttpRequest, HttpResponse,Http404,HttpResponseRedirect
 from django.template import loader
-from .models import Question
+from .models import Question,Choice
 from django.urls import reverse
 from django.views import generic
+from django.utils import timezone
 # Create your views here.
 
 
-class IndexView(generic.ListView ):
-    #lastest_question_list=Question.objects.order_by('-pub_date')[:5] #날짜순으로 
-    #output=', '.join([q.question_text for q in lastest_question_list]) #콤마로 연결하겠다.
-    #template=loader.get_template('mypfapp/index.html') 
-    template_name="mypfapp/index.html"
-    context_object_name='lastest_question_list'
+
+class IndexView(generic.ListView):
+    template_name = 'mypfapp/index.html'
+    context_object_name = 'latest_question_list'
+
     def get_queryset(self):
+        """Return the last five published questions."""
         return Question.objects.order_by('-pub_date')[:5]
     
 # #404에러 일으키기
@@ -43,7 +44,7 @@ def vote(request,question_id):
     try:
         selected_choice=question.choice_set.get(pk=request.POST['choice'])
     except(KeyError, Choice.DoesNotExist):
-        return render(request,'mypfapps/detail.html',{
+        return render(request,'mypfapp/detail.html',{
             'qusetion':question,
             'error_message':"You didn't select a choice.",
         })
@@ -52,4 +53,10 @@ def vote(request,question_id):
         selected_choice.save()
         return HttpResponseRedirect(reverse('mypfapp:results', args=(question_id,)))
 
-
+class DetailView(generic.DetailView):
+    ...
+    def get_queryset(self):
+        """
+        Excludes any questions that aren't published yet.
+        """
+        return Question.objects.filter(pub_date__lte=timezone.now())
